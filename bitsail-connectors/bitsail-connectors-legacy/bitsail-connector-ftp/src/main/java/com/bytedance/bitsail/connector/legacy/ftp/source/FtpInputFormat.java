@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +20,7 @@ import com.bytedance.bitsail.batch.parser.row.TextRowBuilder;
 import com.bytedance.bitsail.common.BitSailException;
 import com.bytedance.bitsail.common.exception.CommonErrorCode;
 import com.bytedance.bitsail.common.model.ColumnInfo;
+import com.bytedance.bitsail.common.type.TypeInfoConverter;
 import com.bytedance.bitsail.common.type.filemapping.FileMappingTypeInfoConverter;
 import com.bytedance.bitsail.component.format.api.RowBuilder;
 import com.bytedance.bitsail.connector.legacy.ftp.client.FtpHandlerFactory;
@@ -57,6 +57,7 @@ public class FtpInputFormat extends InputFormatPlugin<Row, InputSplit> implement
   protected FtpConfig ftpConfig;
   protected String successFilePath;
   protected long fileSize;
+  private String charset;
 
   @Override
   public void initPlugin() throws Exception {
@@ -70,11 +71,13 @@ public class FtpInputFormat extends InputFormatPlugin<Row, InputSplit> implement
       checkSuccessFileExist();
     }
 
-    this.rowBuilder = new TextRowBuilder(inputSliceConfig);
+    this.rowBuilder = new TextRowBuilder<String>(inputSliceConfig);
 
     List<ColumnInfo> columnInfos = inputSliceConfig.getNecessaryOption(FtpReaderOptions.COLUMNS, FtpInputFormatErrorCode.REQUIRED_VALUE);
-    this.rowTypeInfo = ColumnFlinkTypeInfoUtil.getRowTypeInformation(new FileMappingTypeInfoConverter(StringUtils.lowerCase(getType())), columnInfos);
+    this.rowTypeInfo = ColumnFlinkTypeInfoUtil.getRowTypeInformation(createTypeInfoConverter(), columnInfos);
     log.info("Row Type Info: " + rowTypeInfo);
+
+    this.charset = inputSliceConfig.get(FtpReaderOptions.CHARSET);
   }
 
   @Override
@@ -177,7 +180,7 @@ public class FtpInputFormat extends InputFormatPlugin<Row, InputSplit> implement
       this.br = new FtpSeqBufferedReader(ftpHandler, paths.iterator());
       this.br.setFromLine(0);
     }
-    br.setCharsetName("utf-8");
+    br.setCharsetName(charset);
   }
 
   @Override
@@ -248,5 +251,10 @@ public class FtpInputFormat extends InputFormatPlugin<Row, InputSplit> implement
     this.ftpConfig.setSkipFirstLine(skipFirstLine);
     this.ftpConfig.setProtocol(FtpConfig.Protocol.valueOf(protocol.toUpperCase()));
     this.ftpConfig.setConnectPattern(FtpConfig.ConnectPattern.valueOf(connectPattern.toUpperCase()));
+  }
+
+  @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new FileMappingTypeInfoConverter(StringUtils.lowerCase(getType()));
   }
 }

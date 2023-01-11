@@ -1,28 +1,29 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.bytedance.bitsail.common.typeinfo;
+
+import com.bytedance.bitsail.common.BitSailException;
+import com.bytedance.bitsail.common.exception.CommonErrorCode;
 
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
+import java.util.Objects;
 
 public class TypeInfoBridge {
 
@@ -30,6 +31,9 @@ public class TypeInfoBridge {
       Maps.newHashMap();
 
   public static final Map<String, TypeInfo<?>> TYPE_INFO_NAME_MAPPING =
+      Maps.newHashMap();
+
+  public static final Map<Class<?>, Types> TYPE_INFO_TYPES_MAPPING =
       Maps.newHashMap();
 
   static {
@@ -60,11 +64,25 @@ public class TypeInfoBridge {
         TYPE_INFO_NAME_MAPPING.put(StringUtils.upperCase(type.getTypeStringNickName()),
             TYPE_INFO_MAPPING.get(type));
       }
+      TYPE_INFO_TYPES_MAPPING.put(TYPE_INFO_MAPPING.get(type).getTypeClass(), type);
     }
   }
 
   public static TypeInfo<?> bridgeTypeInfo(String typeString) {
     return TYPE_INFO_NAME_MAPPING.get(typeString);
+  }
+
+  public static String bridgeTypes(TypeInfo<?> typeInfo) {
+    Class<?> typeClass = typeInfo.getTypeClass();
+
+    Types types = TYPE_INFO_TYPES_MAPPING.get(typeClass);
+    if (Objects.nonNull(types)) {
+      return StringUtils.isNotEmpty(types.getTypeStringNickName()) ?
+          types.getTypeStringNickName() :
+          types.name().toLowerCase();
+    }
+    throw BitSailException.asBitSailException(CommonErrorCode.INTERNAL_ERROR,
+        String.format("Not support bridge complex type info %s.", typeInfo));
   }
 
 }

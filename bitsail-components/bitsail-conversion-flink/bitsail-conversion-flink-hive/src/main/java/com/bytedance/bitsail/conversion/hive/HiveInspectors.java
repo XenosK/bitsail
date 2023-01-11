@@ -1,24 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Original Files: apache/flink(https://github.com/apache/flink)
- * Copyright: Copyright 2014-2022 The Apache Software Foundation
- * SPDX-License-Identifier: Apache License 2.0
- *
- * This file may have been modified by ByteDance Ltd. and/or its affiliates.
  */
 
 package com.bytedance.bitsail.conversion.hive;
@@ -49,6 +42,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveCharObjectIns
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveDecimalObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.HiveVarcharObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.JavaByteObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.LongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.ShortObjectInspector;
@@ -83,6 +77,8 @@ public class HiveInspectors {
         conversion = BitSailColumnConversion::toHiveBoolean;
       } else if (inspector instanceof StringObjectInspector) {
         conversion = BitSailColumnConversion::toHiveString;
+      } else if (inspector instanceof JavaByteObjectInspector) {
+        conversion = BitSailColumnConversion::toHiveByte;
       } else if (inspector instanceof ByteObjectInspector
           || inspector instanceof BinaryObjectInspector) {
         conversion = BitSailColumnConversion::toHiveBytes;

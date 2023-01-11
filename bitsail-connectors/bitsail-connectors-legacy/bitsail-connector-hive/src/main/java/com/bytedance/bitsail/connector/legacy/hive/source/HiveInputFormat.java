@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,17 +19,16 @@ package com.bytedance.bitsail.connector.legacy.hive.source;
 import com.bytedance.bitsail.base.execution.ProcessResult;
 import com.bytedance.bitsail.common.BitSailException;
 import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
-import com.bytedance.bitsail.common.ddl.source.SourceEngineConnector;
 import com.bytedance.bitsail.common.exception.CommonErrorCode;
 import com.bytedance.bitsail.common.exception.FrameworkErrorCode;
 import com.bytedance.bitsail.common.model.ColumnInfo;
+import com.bytedance.bitsail.common.type.TypeInfoConverter;
 import com.bytedance.bitsail.common.type.filemapping.HiveTypeInfoConverter;
 import com.bytedance.bitsail.common.util.JsonSerializer;
 import com.bytedance.bitsail.common.util.Pair;
 import com.bytedance.bitsail.component.format.api.RowBuilder;
 import com.bytedance.bitsail.component.format.hive.HiveGeneralRowBuilder;
 import com.bytedance.bitsail.connector.hadoop.source.HadoopInputFormatBasePlugin;
-import com.bytedance.bitsail.connector.legacy.hive.common.HiveSourceEngineConnector;
 import com.bytedance.bitsail.connector.legacy.hive.option.HiveReaderOptions;
 import com.bytedance.bitsail.flink.core.typeutils.ColumnFlinkTypeInfoUtil;
 
@@ -128,6 +126,11 @@ public class HiveInputFormat extends HadoopInputFormatBasePlugin<Void, ArrayWrit
   }
 
   @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new HiveTypeInfoConverter();
+  }
+
+  @Override
   public TypeInformation<Row> getProducedType() {
     return rowTypeInfo;
   }
@@ -140,11 +143,6 @@ public class HiveInputFormat extends HadoopInputFormatBasePlugin<Void, ArrayWrit
   @Override
   public String getType() {
     return "Hive";
-  }
-
-  @Override
-  public SourceEngineConnector initSourceSchemaManager(BitSailConfiguration commonConf, BitSailConfiguration readerConf) {
-    return new HiveSourceEngineConnector(commonConf, readerConf, getHiveConf(readerConf));
   }
 
   private InputFormat<Void, ArrayWritable> getMapredInputFormat(BitSailConfiguration commonConfig, BitSailConfiguration inputConf) throws Exception {

@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,6 +16,7 @@
 
 package com.bytedance.bitsail.base.connector.writer.v1;
 
+import com.bytedance.bitsail.base.extension.TypeInfoConverterFactory;
 import com.bytedance.bitsail.base.serializer.BinarySerializer;
 import com.bytedance.bitsail.base.serializer.SimpleBinarySerializer;
 import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
@@ -31,7 +31,8 @@ import java.util.Optional;
 /**
  * Created 2022/6/10
  */
-public interface Sink<InputT, CommitT extends Serializable, WriterStateT extends Serializable> extends Serializable {
+public interface Sink<InputT, CommitT extends Serializable, WriterStateT extends Serializable>
+    extends Serializable, TypeInfoConverterFactory {
 
   /**
    * @return The name of writer operation.

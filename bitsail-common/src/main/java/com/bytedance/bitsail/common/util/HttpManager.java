@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -101,9 +100,8 @@ public class HttpManager {
     }
     StringEntity entity = new StringEntity(jsonStr, "UTF-8");
     httpPost.setEntity(entity);
-    CloseableHttpResponse response = closeableHttpClient
+    return closeableHttpClient
         .execute(httpPost);
-    return response;
   }
 
   public static WrappedResponse sendPost(String url, Map<String, String> headers, Map<String, Object> body, ContentType contentType) throws IOException {
@@ -227,8 +225,7 @@ public class HttpManager {
       int statusCode = response.getStatusLine().getStatusCode();
       String responseString = EntityUtils.toString(response.getEntity(), "UTF-8");
       EntityUtils.consume(response.getEntity());
-      WrappedResponse wrappedResponse = new WrappedResponse(statusCode, responseString);
-      return wrappedResponse;
+      return new WrappedResponse(statusCode, responseString);
     } finally {
       response.close();
     }

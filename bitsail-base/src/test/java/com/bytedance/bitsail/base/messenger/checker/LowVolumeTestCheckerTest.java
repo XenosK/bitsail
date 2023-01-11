@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,13 +16,16 @@
 
 package com.bytedance.bitsail.base.messenger.checker;
 
+import com.bytedance.bitsail.base.messenger.BaseStatisticsMessenger;
 import com.bytedance.bitsail.base.messenger.Messenger;
-import com.bytedance.bitsail.base.messenger.impl.NoOpMessenger;
+import com.bytedance.bitsail.base.messenger.common.MessengerGroup;
+import com.bytedance.bitsail.base.messenger.context.SimpleMessengerContext;
 import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
 import com.bytedance.bitsail.common.option.CommonOptions;
 
 import com.google.common.collect.ImmutableMap;
 import lombok.val;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -31,7 +33,16 @@ import static org.junit.Assert.assertFalse;
 
 public class LowVolumeTestCheckerTest {
 
-  private final Messenger<?> messenger = new NoOpMessenger<>();
+  private Messenger messenger;
+
+  @Before
+  public void before() {
+    messenger = new BaseStatisticsMessenger(SimpleMessengerContext
+        .builder()
+        .messengerGroup(MessengerGroup.READER)
+        .build());
+    messenger.open();
+  }
 
   @Test
   public void check_noThreshold() {

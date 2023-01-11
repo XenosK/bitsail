@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Map;
 import java.util.ServiceLoader;
 
@@ -37,28 +37,50 @@ import java.util.ServiceLoader;
 public class DefaultComponentBuilderLoader<T> implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultComponentBuilderLoader.class);
   private final Class<T> clazz;
-  public Map<String, T> components = Maps.newHashMap();
+  private final Map<String, T> components = Maps.newHashMap();
+  private final ClassLoader classLoader;
   private volatile boolean loaded;
 
   public DefaultComponentBuilderLoader(Class<T> clazz) {
+    this(clazz, Thread.currentThread().getContextClassLoader());
+  }
+
+  public DefaultComponentBuilderLoader(Class<T> clazz, ClassLoader classLoader) {
     this.clazz = Preconditions.checkNotNull(clazz);
+    this.classLoader = classLoader;
   }
 
   public T loadComponent(String componentName) {
-    if (!loaded) {
-      loadAllComponents();
-      loaded = true;
-    }
+    return this.loadComponent(componentName, true);
+  }
+
+  public T loadComponent(String componentName, boolean failOnMiss) {
+    load();
     componentName = StringUtils.lowerCase(componentName);
     if (!components.containsKey(componentName)) {
-      throw new BitSailException(CommonErrorCode.CONFIG_ERROR,
-          String.format("Component %s not in interface %s support until now.", componentName, clazz));
+      if (failOnMiss) {
+        throw new BitSailException(CommonErrorCode.CONFIG_ERROR,
+            String.format("Component %s not in interface %s support until now.", componentName, clazz));
+      }
+      return null;
     }
     return components.get(componentName);
   }
 
+  public Collection<T> loadComponents() {
+    load();
+    return components.values();
+  }
+
+  private void load() {
+    if (!loaded) {
+      loadAllComponents();
+      loaded = true;
+    }
+  }
+
   private void loadAllComponents() {
-    ServiceLoader<T> loadedComponents = ServiceLoader.load(clazz);
+    ServiceLoader<T> loadedComponents = ServiceLoader.load(clazz, classLoader);
     for (T component : loadedComponents) {
       if (!(component instanceof Component)) {
         LOG.warn("Component {} not implement from interface component, skip load it.", component);

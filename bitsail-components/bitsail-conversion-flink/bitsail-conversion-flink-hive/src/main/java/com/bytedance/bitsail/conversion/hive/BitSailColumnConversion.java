@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -55,6 +54,8 @@ public final class BitSailColumnConversion {
       switch (primitiveType) {
         case BOOLEAN:
           return ((Column) o).asBoolean();
+        case BYTE:
+          return ((Column) o).asLong().byteValue();
         case LONG:
           return toIntOrBigintHiveObject((Column) o, false);
         case INT:
@@ -103,6 +104,10 @@ public final class BitSailColumnConversion {
 
   public static Object toHiveInt(Object o) {
     return toHivePrimitiveObject(o, PrimitiveCategory.INT);
+  }
+
+  public static Object toHiveByte(Object o) {
+    return toHivePrimitiveObject(o, PrimitiveCategory.BYTE);
   }
 
   public static Object toHiveShort(Object o) {

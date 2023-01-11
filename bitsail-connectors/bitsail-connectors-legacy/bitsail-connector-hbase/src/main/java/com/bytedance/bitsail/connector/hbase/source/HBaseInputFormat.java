@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,16 +25,18 @@ import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
 import com.bytedance.bitsail.common.constants.Constants;
 import com.bytedance.bitsail.common.model.ColumnInfo;
 import com.bytedance.bitsail.common.option.ReaderOptions;
+import com.bytedance.bitsail.common.type.TypeInfoConverter;
 import com.bytedance.bitsail.common.type.filemapping.FileMappingTypeInfoConverter;
 import com.bytedance.bitsail.common.typeinfo.TypeInfo;
 import com.bytedance.bitsail.common.typeinfo.TypeInfoUtils;
 import com.bytedance.bitsail.common.util.Preconditions;
-import com.bytedance.bitsail.component.format.hbase.HBaseDeserializationFormat;
 import com.bytedance.bitsail.connector.hadoop.source.HadoopInputFormatCommonBasePlugin;
 import com.bytedance.bitsail.connector.hbase.HBaseHelper;
 import com.bytedance.bitsail.connector.hbase.error.HBasePluginErrorCode;
+import com.bytedance.bitsail.connector.hbase.format.HBaseDeserializationFormat;
 import com.bytedance.bitsail.connector.hbase.option.HBaseReaderOptions;
 import com.bytedance.bitsail.connector.hbase.source.split.RegionSplit;
+import com.bytedance.bitsail.flink.core.typeutils.ColumnFlinkTypeInfoUtil;
 
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
@@ -159,7 +160,7 @@ public class HBaseInputFormat extends HadoopInputFormatCommonBasePlugin<Row, Inp
     List<ColumnInfo> columnInfos = inputSliceConfig.getNecessaryOption(
         HBaseReaderOptions.COLUMNS, HBasePluginErrorCode.REQUIRED_VALUE);
     typeInfos =
-        TypeInfoUtils.getTypeInfos(new FileMappingTypeInfoConverter(StringUtils.lowerCase(getType())), columnInfos);
+        TypeInfoUtils.getTypeInfos(createTypeInfoConverter(), columnInfos);
 
     columnNames = columnInfos.stream().map(ColumnInfo::getName)
         .collect(Collectors.toList());
@@ -176,6 +177,7 @@ public class HBaseInputFormat extends HadoopInputFormatCommonBasePlugin<Row, Inp
             (column.contains(":") && column.split(":").length == 2) || ROW_KEY.equalsIgnoreCase(column),
             "Invalid column names, it should be [ColumnFamily:Column] format"))
         .forEach(column -> columnFamilies.add(column.split(":")[0]));
+    rowTypeInfo = ColumnFlinkTypeInfoUtil.getRowTypeInformation(createTypeInfoConverter(), columnInfos);
   }
 
   /**
@@ -219,7 +221,11 @@ public class HBaseInputFormat extends HadoopInputFormatCommonBasePlugin<Row, Inp
         LOG.error("Cannot read data from {}, reason: \n", tableName, e);
       }
     }
-    reuse = deserializationSchema.deserialize(rawRow);
+    Row newRow = deserializationSchema.deserialize(rawRow);
+    for (int i = 0; i < newRow.getArity(); i++) {
+      reuse.setField(i, newRow.getField(i));
+    }
+
     return reuse;
   }
 
@@ -361,5 +367,10 @@ public class HBaseInputFormat extends HadoopInputFormatCommonBasePlugin<Row, Inp
     jobConf.set(TableInputFormat.INPUT_TABLE, tableName);
     hbaseConfig.forEach((key, value) -> jobConf.set(key, value.toString()));
     return jobConf;
+  }
+
+  @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new FileMappingTypeInfoConverter(StringUtils.lowerCase(getType()));
   }
 }

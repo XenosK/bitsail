@@ -1,24 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * Original Files: apache/flink(https://github.com/apache/flink)
- * Copyright: Copyright 2014-2022 The Apache Software Foundation
- * SPDX-License-Identifier: Apache License 2.0
- *
- * This file may have been modified by ByteDance Ltd. and/or its affiliates.
  */
 
 package com.bytedance.bitsail.connector.hadoop.source.format;
@@ -29,6 +22,7 @@ import com.bytedance.bitsail.common.BitSailException;
 import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
 import com.bytedance.bitsail.common.model.ColumnInfo;
 import com.bytedance.bitsail.common.type.BitSailTypeInfoConverter;
+import com.bytedance.bitsail.common.type.TypeInfoConverter;
 import com.bytedance.bitsail.connector.hadoop.common.TextInputFormatErrorCode;
 import com.bytedance.bitsail.connector.hadoop.option.HadoopReaderOptions;
 import com.bytedance.bitsail.flink.core.parser.BytesParser;
@@ -117,7 +111,7 @@ public class TextInputFormat extends DelimitedFileInputFormatPlugin implements
     List<ColumnInfo> columnInfos = inputSliceConfig
         .getNecessaryOption(HadoopReaderOptions.COLUMNS, TextInputFormatErrorCode.REQUIRED_VALUE);
 
-    this.rowTypeInfo = ColumnFlinkTypeInfoUtil.getRowTypeInformation(new BitSailTypeInfoConverter(), columnInfos);
+    this.rowTypeInfo = ColumnFlinkTypeInfoUtil.getRowTypeInformation(createTypeInfoConverter(), columnInfos);
 
     LOG.info("Row type info: " + rowTypeInfo);
   }
@@ -158,6 +152,11 @@ public class TextInputFormat extends DelimitedFileInputFormatPlugin implements
   @Override
   public TypeInformation<Row> getProducedType() {
     return rowTypeInfo;
+  }
+
+  @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new BitSailTypeInfoConverter();
   }
 
   public static class TextInputFormatBuilder {

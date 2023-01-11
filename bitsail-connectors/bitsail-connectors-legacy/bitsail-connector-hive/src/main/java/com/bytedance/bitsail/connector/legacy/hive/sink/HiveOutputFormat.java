@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,18 +18,17 @@ package com.bytedance.bitsail.connector.legacy.hive.sink;
 
 import com.bytedance.bitsail.base.execution.ProcessResult;
 import com.bytedance.bitsail.common.BitSailException;
-import com.bytedance.bitsail.common.configuration.BitSailConfiguration;
-import com.bytedance.bitsail.common.ddl.sink.SinkEngineConnector;
 import com.bytedance.bitsail.common.exception.CommonErrorCode;
 import com.bytedance.bitsail.common.model.ColumnInfo;
 import com.bytedance.bitsail.common.option.CommonOptions;
 import com.bytedance.bitsail.common.option.WriterOptions;
+import com.bytedance.bitsail.common.type.TypeInfoConverter;
+import com.bytedance.bitsail.common.type.filemapping.HiveTypeInfoConverter;
 import com.bytedance.bitsail.common.util.JsonSerializer;
 import com.bytedance.bitsail.common.util.Pair;
 import com.bytedance.bitsail.connector.hadoop.sink.FileOutputFormatPlugin;
 import com.bytedance.bitsail.connector.hadoop.util.HdfsUtils;
 import com.bytedance.bitsail.connector.legacy.hive.common.HiveParqueFormatErrorCode;
-import com.bytedance.bitsail.connector.legacy.hive.common.HiveSinkEngineConnector;
 import com.bytedance.bitsail.connector.legacy.hive.option.HiveWriterOptions;
 import com.bytedance.bitsail.conversion.hive.ConvertToHiveObjectOptions;
 import com.bytedance.bitsail.conversion.hive.extractor.GeneralWritableExtractor;
@@ -369,6 +367,11 @@ public class HiveOutputFormat<E extends Row> extends FileOutputFormatPlugin<E> {
     }
   }
 
+  @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new HiveTypeInfoConverter();
+  }
+
   @SuppressWarnings("checkstyle:MagicNumber")
   @Override
   public void initPlugin() throws TException, IOException {
@@ -406,11 +409,6 @@ public class HiveOutputFormat<E extends Row> extends FileOutputFormatPlugin<E> {
         storageDescriptor.getOutputFormat(),
         storageDescriptor.getSerdeInfo().getSerializationLib(),
         hiveSerdeParameter);
-  }
-
-  @Override
-  public SinkEngineConnector initSinkSchemaManager(BitSailConfiguration commonConf, BitSailConfiguration writerConf) throws Exception {
-    return new HiveSinkEngineConnector(commonConf, writerConf);
   }
 
   /**

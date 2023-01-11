@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,11 +23,13 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.header.internals.RecordHeader;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -83,28 +84,24 @@ public class KafkaProducer {
     partitionList = getPartitionsByTopic(topic);
   }
 
-  public Future<RecordMetadata> send(String value) {
-    return producer.send(new ProducerRecord<>(topic, value));
+  public Future<RecordMetadata> send(KafkaRecord record) {
+    return producer.send(generateProducerRecord(record));
   }
 
-  public Future<RecordMetadata> send(String value, Callback callback) {
-    return producer.send(new ProducerRecord<>(topic, value), callback);
+  public Future<RecordMetadata> send(KafkaRecord record, Callback callback) {
+    return producer.send(generateProducerRecord(record), callback);
   }
 
-  public Future<RecordMetadata> send(String value, int partitionId) {
-    return producer.send(new ProducerRecord<>(topic, partitionId, null, value));
-  }
-
-  public Future<RecordMetadata> send(String value, int partitionId, Callback callback) {
-    return producer.send(new ProducerRecord<>(topic, partitionId, null, value), callback);
-  }
-
-  public Future<RecordMetadata> send(String key, String value) {
-    return producer.send(new ProducerRecord<>(topic, key, value));
-  }
-
-  public Future<RecordMetadata> send(String key, String value, Callback callback) {
-    return producer.send(new ProducerRecord<>(topic, key, value), callback);
+  /**
+   * convert {@link KafkaRecord} to {@link ProducerRecord}
+   */
+  private ProducerRecord generateProducerRecord(KafkaRecord record) {
+    ProducerRecord producerRecord = new ProducerRecord(topic, record.getPartitionId(), record.getTimestamp(), record.getKey(), record.getValue());
+    Map<String, String> headers = record.getHeaders();
+    if (Objects.nonNull(headers)) {
+      headers.keySet().stream().forEach(key -> producerRecord.headers().add(new RecordHeader(key, headers.get(key).getBytes())));
+    }
+    return producerRecord;
   }
 
   /**

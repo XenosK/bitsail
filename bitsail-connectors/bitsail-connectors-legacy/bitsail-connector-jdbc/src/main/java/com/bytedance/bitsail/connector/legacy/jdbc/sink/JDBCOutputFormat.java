@@ -1,12 +1,11 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
+ * Copyright 2022 Bytedance Ltd. and/or its affiliates.
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -27,22 +26,23 @@ import com.bytedance.bitsail.common.type.TypeInfoConverter;
 import com.bytedance.bitsail.common.type.filemapping.JdbcTypeInfoConverter;
 import com.bytedance.bitsail.common.util.Pair;
 import com.bytedance.bitsail.common.util.TypeConvertUtil.StorageEngine;
-import com.bytedance.bitsail.connector.legacy.jdbc.constants.Key;
 import com.bytedance.bitsail.connector.legacy.jdbc.constants.WriteModeProxy;
 import com.bytedance.bitsail.connector.legacy.jdbc.exception.JDBCPluginErrorCode;
 import com.bytedance.bitsail.connector.legacy.jdbc.extension.DatabaseInterface;
+import com.bytedance.bitsail.connector.legacy.jdbc.model.ConnectionInfo;
 import com.bytedance.bitsail.connector.legacy.jdbc.model.SqlType;
 import com.bytedance.bitsail.connector.legacy.jdbc.options.JdbcWriterOptions;
 import com.bytedance.bitsail.connector.legacy.jdbc.utils.JDBCConnHolder;
 import com.bytedance.bitsail.connector.legacy.jdbc.utils.JdbcQueryHelper;
 import com.bytedance.bitsail.connector.legacy.jdbc.utils.MysqlUtil;
+import com.bytedance.bitsail.connector.legacy.jdbc.utils.ignore.JDBCInsertIgnoreUtil;
+import com.bytedance.bitsail.connector.legacy.jdbc.utils.ignore.MysqlInsertIgnoreUtil;
 import com.bytedance.bitsail.connector.legacy.jdbc.utils.upsert.JDBCUpsertUtil;
 import com.bytedance.bitsail.connector.legacy.jdbc.utils.upsert.MysqlUpsertUtil;
 import com.bytedance.bitsail.flink.core.constants.TypeSystem;
 import com.bytedance.bitsail.flink.core.legacy.connector.OutputFormatPlugin;
 import com.bytedance.bitsail.flink.core.typeutils.NativeFlinkTypeInfoUtil;
 
-import com.alibaba.fastjson.JSONObject;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -97,6 +97,7 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
   protected String[] shardKeys;
   protected Map<String, List<String>> upsertKeys;
   protected JDBCUpsertUtil jdbcUpsertUtil;
+  protected JDBCInsertIgnoreUtil jdbcInsertIgnoreUtil;
   /**
    * Writer batch size
    */
@@ -144,10 +145,9 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
     deleteThreshold = outputSliceConfig.get(JdbcWriterOptions.DELETE_THRESHOLD);
     deleteIntervalMs = outputSliceConfig.get(JdbcWriterOptions.DELETE_INTERVAL_MS);
 
-    List<Map<String, Object>> connectionList = outputSliceConfig.getNecessaryOption(JdbcWriterOptions.CONNECTIONS,
+    List<ConnectionInfo> connections = outputSliceConfig.getNecessaryOption(JdbcWriterOptions.CONNECTIONS,
         JDBCPluginErrorCode.REQUIRED_VALUE);
-    List<JSONObject> connections = connectionList.stream().map(JSONObject::new).collect(Collectors.toList());
-    dbURL = (connections.get(0)).getString(Key.DB_URL);
+    dbURL = connections.get(0).getUrl();
 
     String connectionParameters = outputSliceConfig.getUnNecessaryOption(JdbcWriterOptions.CONNECTION_PARAMETERS, null);
     dbURL = getDbURL(dbURL, connectionParameters);
@@ -160,6 +160,9 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
     if (writeMode == WriteMode.overwrite) {
       upsertKeys = initUniqueIndexColumnsMap();
       jdbcUpsertUtil = initUpsertUtils();
+    }
+    if (writeMode == WriteMode.ignore) {
+      jdbcInsertIgnoreUtil = initInsertIgnoreUtils();
     }
 
     partitionName = outputSliceConfig.getUnNecessaryOption(JdbcWriterOptions.PARTITION_NAME, null);
@@ -183,7 +186,7 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
     writeModeProxy = buildWriteModeProxy(writeMode);
     writeModeProxy.prepareOnClient();
 
-    rowTypeInfo = NativeFlinkTypeInfoUtil.getRowTypeInformation(columns, getTypeConverter());
+    rowTypeInfo = NativeFlinkTypeInfoUtil.getRowTypeInformation(columns, createTypeInfoConverter());
     log.info("Output Row Type Info: " + rowTypeInfo);
 
     // generated values
@@ -191,10 +194,6 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
     log.info("Clear query generated: " + clearQuery);
     log.info("Insert query generated: " + query);
     log.info("Validate plugin configuration parameters finished.");
-  }
-
-  public TypeInfoConverter getTypeConverter() {
-    return new JdbcTypeInfoConverter(getStorageEngine().name());
   }
 
   public String getDbURL(String dbURL, String connectionParameters) {
@@ -240,6 +239,10 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
       case overwrite:
         insertQuery = genUpsertTemplate(table, columnNames);
         break;
+      case ignore:
+        columnNames = addPartitionColumns(columnNames, partitionName, extraPartitions);
+        insertQuery = genInsertIgnoreTemplate(table, columnNames);
+        break;
       default:
         throw BitSailException.asBitSailException(JDBCPluginErrorCode.INTERNAL_ERROR, "Unsupported write mode: " + writeMode);
 
@@ -266,12 +269,23 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
     return jdbcUpsertUtil.genUpsertTemplate(table, columnNames, "");
   }
 
+  /**
+   * Generate the update template for the insert ignore action.
+   */
+  protected String genInsertIgnoreTemplate(String table, List<String> columnNames) {
+    return jdbcInsertIgnoreUtil.genInsertIgnoreTemplate(table, columnNames);
+  }
+
   protected Map<String, List<String>> initUniqueIndexColumnsMap() throws IOException {
     return null;
   }
 
   protected JDBCUpsertUtil initUpsertUtils() {
     return new MysqlUpsertUtil(this, shardKeys, upsertKeys);
+  }
+
+  protected JDBCInsertIgnoreUtil initInsertIgnoreUtils() {
+    return new MysqlInsertIgnoreUtil(this, shardKeys);
   }
 
   protected List<String> addPartitionColumns(List<String> columnNames, String partitionName, JDBCOutputExtraPartitions extraPartitions) {
@@ -629,6 +643,11 @@ public class JDBCOutputFormat extends OutputFormatPlugin<Row> implements ResultT
       log.info("Executing pre query: " + preQuery);
       jdbcQueryHelper.executeQueryInNewConnection(preQuery, true);
     }
+  }
+
+  @Override
+  public TypeInfoConverter createTypeInfoConverter() {
+    return new JdbcTypeInfoConverter(getStorageEngine().name());
   }
 
   @Override
